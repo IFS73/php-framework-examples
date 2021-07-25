@@ -4,6 +4,10 @@ require_once __DIR__ . './vendor/autoload.php';
 
 use App\Model\Answer;
 use App\Model\Question;
+use Cda0521Framework\Service\FlashMessages\FlashMessage;
+use Cda0521Framework\Service\FlashMessages\FlashMessagesService;
+
+$flashMessagesService = new FlashMessagesService();
 
 // Vérifie si l'utilisateur vient de répondre à une question
 $formSubmitted = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['answer']) && isset($_POST['current-question']);
@@ -14,6 +18,14 @@ if ($formSubmitted) {
   $previousQuestion = Question::findById($_POST['current-question']);
   // Vérifie si la réponse fournie par l'utilisateur correspond à la bonne réponse à la question précédente
   $rightlyAnswered = intval($_POST['answer']) === $previousQuestion->getRightAnswer()->getId();
+
+  // Ajoute un message flash en fonction de la réussite de l'utilisateur
+  if ($rightlyAnswered) {
+    $flashMessage = new FlashMessage('Bravo, c\'était la bonne réponse!', 'success');
+  } else {
+    $flashMessage = new FlashMessage('Hé non! La bonne réponse était: ' . $previousQuestion->getRightAnswer()->getText(), 'danger');
+  }
+  $flashMessagesService->addMessage($flashMessage);
 }
 
 // Récupère la question actuelle en base de données
@@ -37,18 +49,12 @@ $question = Question::findById(1);
   <div class="container">
     <h1>Quizz</h1>
 
-    <?php if ($formSubmitted): ?>
-    <!-- Affiche une alerte uniquement si l'utilisateur vient de répondre à une question -->
-    <div id="answer-result" class="alert alert-<?php if ($rightlyAnswered) { echo 'success'; } else { echo 'danger'; } ?>">
-      <i class="fas fa-thumbs-<?php if ($rightlyAnswered) { echo 'up'; } else { echo 'down'; } ?>"></i>
-      <!-- Affiche un texte différent selon que l'utilisateur a bien répondu à la question ou non -->
-      <?php if ($rightlyAnswered): ?>
-        Bravo, c'était la bonne réponse!
-      <?php else: ?>
-        Hé non! La bonne réponse était <strong><?= $previousQuestion->getRightAnswer()->getText() ?></strong>
-      <?php endif; ?>
+    <?php foreach ($flashMessagesService->getMessages() as $message): ?>
+    <!-- Affiche une alerte pour chaque message flash présent dans la session (par défaut, il n'y en a aucune) -->
+    <div id="answer-result" class="alert alert-<?= $message->getType() ?>">
+      <?= $message->getMessage() ?>
     </div>
-    <?php endif; ?>
+    <?php endforeach; ?>
 
     <h2 class="mt-4">Question n°<span id="question-id"><?= $question->getRank() ?></span></h2>
     <form id="question-form" method="post">
